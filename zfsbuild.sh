@@ -2,6 +2,7 @@
 #
 # 2015-07-17 zfsbuild.sh by severach for AUR 4
 # 2015-08-08 AUR4 -> AUR, added git pull, safer AUR 3.5 update folder
+# 2016-05-15 Updated for new AUR packages
 # Adapted from ZFS Builder by graysky
 # place this in a user home folder.
 # I recommend ~/build/zfspkg/. Do not name the folder 'zfs'.
@@ -14,7 +15,9 @@ _opt_ZFSbyid='/dev/disk/by-partlabel'
 #_opt_ZFSbyid='/dev/disk/by-id'
 # '' for manual answer to prompts. --noconfirm to go ahead and do it all.
 _opt_AutoInstall='--noconfirm'
-_opt_Downgrade=0 # default=0, 1 to be admonished and downgrade to your current kernel (uname -r)
+_opt_Downgrade=1 # default=0, 1 to be admonished and downgrade to your current kernel (uname -r)
+
+_nproc="$(nproc)"; _nproc=$((_nproc>8?8:_nproc))
 
 # Multiprocessor compile enabled!
 # Huuuuuuge performance improvement. Watch in htop.
@@ -34,7 +37,7 @@ set -u
 set -e
 
 if [ "${_opt_Downgrade}" -ne 0 ]; then
-  echo "Warning: You are downgrading zfs which is unsupported"
+  echo 'Warning: You are downgrading zfs which is unsupported'
   sleep 5
   _opt_DownGradeVer="$(uname -r)"        # uname: Version 0.0.0-0
   _opt_DownGradeVer="${_opt_DownGradeVer%-ARCH}" # These disagree when the version isn't 3 numbers like 4.0
@@ -44,7 +47,7 @@ if [ "${_opt_Downgrade}" -ne 0 ]; then
 fi
 
 if [ "${EUID}" -eq 0 ]; then
-  echo "This script must NOT be run as root"
+  echo 'This script must NOT be run as root'
   sleep 1
   exit 1
 fi
@@ -57,9 +60,10 @@ done
 
 cd "$(dirname "$0")"
 OPWD="$(pwd)"
-for cwpackage in 'spl-utils-git' 'spl-git' 'zfs-utils-git' 'zfs-git'; do
+sudo true
+for cwpackage in 'spl-utils-linux-git' 'spl-linux-git' 'zfs-utils-linux-git' 'zfs-linux-git'; do
   #cower -dc -f "${cwpackage}"
-  if [ -d "${cwpackage}" -a ! -d "${cwpackage}/.git" ]; then
+  if [ -d "${cwpackage}" ] && [ ! -d "${cwpackage}/.git" ]; then
     echo "${cwpackage}: Convert AUR3.5 to AUR4"
     cd "${cwpackage}"
     git clone "https://aur.archlinux.org/${cwpackage}.git/" "${cwpackage}.temp"
@@ -80,28 +84,36 @@ for cwpackage in 'spl-utils-git' 'spl-git' 'zfs-utils-git' 'zfs-git'; do
     git clone "https://aur.archlinux.org/${cwpackage}.git/"
     cd "${cwpackage}"
   fi
-  sed -i -e 's:^\s\+make$:'"& -s -j $(nproc):g" 'PKGBUILD'
+  sed -i -e 's:^\s\+make$:'"& -s -j ${_nproc}:g" 'PKGBUILD'
   if [ "${_opt_AutoRemove}" -ne 0 ]; then
     sed -i -e 's:^conflicts=(.*$: &\n_kernelversionsmall="`uname -r | cut -d - -f 1`"\nconflicts+=("linux>${_kernelversionsmall}" "linux<${_kernelversionsmall}")\n:g' 'PKGBUILD'
   fi
   if [ "${_opt_Downgrade}" -ne 0 ]; then
     sed -i -e 's:\(_kernel_version_x[0-9]\+_full="\)\(.\+\)\(".*\)$'":\1${_opt_DownGradeVer}\3:g" \
-           -e 's:\(_kernel_version_x[0-9]\+="\)\(.\+\)\(".*\)$'":\1${_opt_DownGradePkg}\3:g" 'PKGBUILD' *.install || :
+           -e 's:\(_kernel_version_x[0-9]\+="\)\(.\+\)\(".*\)$'":\1${_opt_DownGradePkg}\3:g" \
+           -e 's:\.git#commit=[^"]\+":.git":g' \
+           -e '# More lines for the -linux packages' \
+           -e 's:linux-headers=[0-9\.-]\+'":linux-headers=${_opt_DownGradeVer}:g" \
+           -e 's:linux=[0-9\.-]\+'":linux=${_opt_DownGradeVer}:g" \
+           -e 's:/usr/lib/modules/[0-9\.-]\+ARCH/'":/usr/lib/modules/${_opt_DownGradeVer}-ARCH/:g" \
+           -e 's:usr/src/spl-\*/[0-9\.-]\+ARCH/'":usr/src/spl-*/${_opt_DownGradeVer}-ARCH/:g" \
+           -e 's:usr/src/zfs-\*/[0-9\.-]\+ARCH/'":usr/src/zfs-*/${_opt_DownGradeVer}-ARCH/:g" \
+      'PKGBUILD' || :
+    sed -i -e 's:depmod -a .*$'":depmod -a '${_opt_DownGradeVer}-ARCH':g" *.install || :
   fi
   # Only found in help files
   if ! makepkg -sCcfi ${_opt_AutoInstall}; then
     cd "${OPWD}"
     break
   fi
-  #rm -rf 'zfs' 'spl'
   cd "${OPWD}"
 done
-which fsck.zfs
-if [ "$?" -eq 0 ]; then
+if which 'fsck.zfs'; then
   sudo mkinitcpio -p 'linux' # Stores fsck.zfs into the initrd image. I don't know why it would be needed.
 fi
 #sudo zpool import "${_opt_ZFSPool}" # Don't do this or zpool will mount via /dev/sd?, which you won't like!
 set -x
+sudo modprobe 'zfs'
 sudo zpool import -d "${_opt_ZFSbyid}" "${_opt_ZFSPool}" # This loads all the modules
 set +x
 sudo zpool status
