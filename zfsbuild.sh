@@ -40,7 +40,7 @@ if [ "${_opt_Downgrade}" -ne 0 ]; then
   echo 'Warning: You are downgrading zfs which is unsupported'
   sleep 5
   _opt_DownGradeVer="$(uname -r)"        # uname: Version 0.0.0-0
-  _opt_DownGradeVer="${_opt_DownGradeVer%-ARCH}" # These disagree when the version isn't 3 numbers like 4.0
+  _opt_DownGradeVer="${_opt_DownGradeVer%-ARCH}" # These disagree when the version isn't 3 numbers like 4.0 or 4.7
   _opt_DownGradePkg="$(pacman -Q linux)" # pacman: Version 0.0-0
   _opt_DownGradePkg="${_opt_DownGradePkg#* }"
   _opt_DownGradePkg="${_opt_DownGradePkg%-ARCH}"
@@ -93,8 +93,8 @@ for cwpackage in 'spl-utils-linux-git' 'spl-linux-git' 'zfs-utils-linux-git' 'zf
            -e 's:\(_kernel_version_x[0-9]\+="\)\(.\+\)\(".*\)$'":\1${_opt_DownGradePkg}\3:g" \
            -e 's:\.git#commit=[^"]\+":.git":g' \
            -e '# More lines for the -linux packages' \
-           -e 's:linux-headers=[0-9\.-]\+'":linux-headers=${_opt_DownGradeVer}:g" \
-           -e 's:linux=[0-9\.-]\+'":linux=${_opt_DownGradeVer}:g" \
+           -e 's:linux-headers=[0-9\.-]\+'":linux-headers=${_opt_DownGradePkg}:g" \
+           -e 's:linux=[0-9\.-]\+'":linux=${_opt_DownGradePkg}:g" \
            -e 's:/usr/lib/modules/[0-9\.-]\+ARCH/'":/usr/lib/modules/${_opt_DownGradeVer}-ARCH/:g" \
            -e 's:usr/src/spl-\*/[0-9\.-]\+ARCH/'":usr/src/spl-*/${_opt_DownGradeVer}-ARCH/:g" \
            -e 's:usr/src/zfs-\*/[0-9\.-]\+ARCH/'":usr/src/zfs-*/${_opt_DownGradeVer}-ARCH/:g" \
@@ -112,10 +112,8 @@ if which 'fsck.zfs'; then
   sudo mkinitcpio -p 'linux' # Stores fsck.zfs into the initrd image. I don't know why it would be needed.
 fi
 #sudo zpool import "${_opt_ZFSPool}" # Don't do this or zpool will mount via /dev/sd?, which you won't like!
-set -x
 sudo modprobe 'zfs'
 sudo zpool import -d "${_opt_ZFSbyid}" "${_opt_ZFSPool}" # This loads all the modules
-set +x
 sudo zpool status
 sudo -k
 sleep 2
