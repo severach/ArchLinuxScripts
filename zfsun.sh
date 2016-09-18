@@ -20,6 +20,7 @@ zpool export "${_opt_ZFSPool}" # zpool import no longer works with drives that w
 if [ ! -d "${_opt_ZFSFolder}" ]; then
   echo "${_opt_ZFSPool} exported"
   rmmod 'zfs' 'zavl' 'zunicode' 'zpios' 'zcommon' 'znvpair' 'spl' 'splat'
+  pacman -Rc 'spl-utils-linux' # This works even if some are already removed.
   pacman -Rc 'spl-utils-git' # This works even if some are already removed.
   pacman -Rc 'spl-utils-linux-git' # This works even if some are already removed.
   #pacman -R 'zfs-utils-git' 'spl-git' 'spl-utils-git' 'zfs-git'

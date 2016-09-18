@@ -3,19 +3,23 @@
 # 2015-07-17 zfsbuild.sh by severach for AUR 4
 # 2015-08-08 AUR4 -> AUR, added git pull, safer AUR 3.5 update folder
 # 2016-05-15 Updated for new AUR packages
+# 2016-08-14 Fixed versioning at Linux 4.7.0
 # Adapted from ZFS Builder by graysky
 # place this in a user home folder.
 # I recommend ~/build/zfspkg/. Do not name the folder 'zfs'.
 
+# https://github.com/severach/ArchLinuxScripts
+
 # 1 to add conflicts=(linux>,linux<) which offers automatic removal on upgrade.
 # Manual removal with zfsun.sh is preferred.
 _opt_AutoRemove=0
-_opt_ZFSPool='sdmdata'
+_opt_ZFSPool='zfsdata'
 _opt_ZFSbyid='/dev/disk/by-partlabel'
 #_opt_ZFSbyid='/dev/disk/by-id'
 # '' for manual answer to prompts. --noconfirm to go ahead and do it all.
 _opt_AutoInstall='--noconfirm'
-_opt_Downgrade=1 # default=0, 1 to be admonished and downgrade to your current kernel (uname -r)
+_opt_Downgrade=0 # default=0, 1 to be admonished and downgrade to your current kernel (uname -r)
+_opt_git='' # '' for release versions, '-git' for git versions
 
 _nproc="$(nproc)"; _nproc=$((_nproc>8?8:_nproc))
 
@@ -61,7 +65,7 @@ done
 cd "$(dirname "$0")"
 OPWD="$(pwd)"
 sudo true
-for cwpackage in 'spl-utils-linux-git' 'spl-linux-git' 'zfs-utils-linux-git' 'zfs-linux-git'; do
+for cwpackage in "spl-utils-linux${_opt_git}" "spl-linux${_opt_git}" "zfs-utils-linux${_opt_git}" "zfs-linux${_opt_git}"; do
   #cower -dc -f "${cwpackage}"
   if [ -d "${cwpackage}" ] && [ ! -d "${cwpackage}/.git" ]; then
     echo "${cwpackage}: Convert AUR3.5 to AUR4"
